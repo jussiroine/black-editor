@@ -1,6 +1,6 @@
 # Black Editor
 
-Black Editor is a desktop content tool for the Blackhole site. It is built for creating, editing, and managing blog content in one place while working with both GitHub and Azure at the same time.
+Black Editor is a desktop content tool for the Blackhole site. It is built for creating, editing, and managing blog content in one place while synchronizing posts with GitHub and hosting images on Azure Blob Storage.
 
 ## What it does
 
@@ -8,7 +8,7 @@ Black Editor is a desktop content tool for the Blackhole site. It is built for c
 - creates new MDX posts and updates existing ones directly in GitHub
 - edits front matter such as title, slug, tags, category, status, image, and description
 - uploads pasted, dropped, or selected images to Azure Blob Storage and inserts the public URL into the post
-- can use OpenAI to suggest tags for a draft
+- uses OpenAI to suggest tags for a draft
 - stores app settings locally, with sensitive values encrypted when Electron safe storage is available
 
 ## How Black Editor fits the Blackhole workflow
