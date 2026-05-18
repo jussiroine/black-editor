@@ -1,5 +1,6 @@
 import matter from 'gray-matter'
 import type {
+  Author,
   DeviceFlowResponse,
   FrontMatter,
   LoadedPost,
@@ -96,11 +97,25 @@ export async function getPost(filePath: string): Promise<LoadedPost> {
       description: fm.description ?? '',
       image: fm.image ?? '',
       alt: fm.alt ?? '',
-      author: typeof fm.author === 'object' && fm.author !== null
-        ? ((fm.author as Record<string, unknown>).name as string ?? '')
-        : (fm.author ?? ''),
+      author: (() => {
+        const a = fm.author as unknown
+        if (typeof a === 'object' && a !== null) {
+          const ao = a as Record<string, unknown>
+          return {
+            name: typeof ao.name === 'string' ? ao.name : '',
+            role: typeof ao.role === 'string' ? ao.role : '',
+            bio: typeof ao.bio === 'string' ? ao.bio : '',
+            image: typeof ao.image === 'string' ? ao.image : '',
+            alt: typeof ao.alt === 'string' ? ao.alt : ''
+          } satisfies Author
+        }
+        const name = typeof a === 'string' ? a : ''
+        return { name, role: '', bio: '', image: '', alt: name } satisfies Author
+      })(),
       category: fm.category ?? '',
-      readTime: typeof fm.readTime === 'number' ? fm.readTime : 1,
+      readTime: typeof fm.readTime === 'number'
+        ? `${fm.readTime} min read`
+        : (typeof fm.readTime === 'string' ? fm.readTime : '1 min read'),
       tags: Array.isArray(fm.tags) ? fm.tags : [],
       slug: fm.slug ?? '',
       status: fm.status === 'published' ? 'published' : 'draft'

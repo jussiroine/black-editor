@@ -139,8 +139,8 @@ export default function FrontMatterForm({
           <label>Author</label>
           <input
             type="text"
-            value={frontMatter.author}
-            onChange={(e) => set('author', e.target.value)}
+            value={frontMatter.author.name}
+            onChange={(e) => set('author', { ...frontMatter.author, name: e.target.value })}
           />
         </div>
         <div className="field">
@@ -181,7 +181,7 @@ export default function FrontMatterForm({
           <label>Read time (auto)</label>
           <input
             type="text"
-            value={`${frontMatter.readTime} min read`}
+            value={frontMatter.readTime}
             readOnly
             style={{ color: 'var(--text-secondary)', cursor: 'default' }}
           />

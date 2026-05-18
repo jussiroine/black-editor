@@ -83,9 +83,9 @@ function defaultFrontMatter(author: string): FrontMatter {
     description: '',
     image: '',
     alt: '',
-    author,
+    author: { name: author, role: '', bio: '', image: '', alt: author },
     category: '',
-    readTime: 1,
+    readTime: '1 min read',
     tags: [],
     slug: '',
     status: 'draft'
@@ -115,6 +115,23 @@ export default function EditorScreen({
   const [showInfo, setShowInfo] = useState(false)
 
   const contentRef = useRef(content)
+
+  // Always-fresh ref so the autosave interval captures latest state without re-subscribing
+  const autosaveRef = useRef<() => void>(() => {})
+  useEffect(() => {
+    autosaveRef.current = () => {
+      if (isDirty && !isSaving && frontMatter.title.trim()) {
+        void handleSave()
+      }
+    }
+  })
+
+  // Autosave every 2 minutes
+  useEffect(() => {
+    const AUTOSAVE_MS = 2 * 60 * 1000
+    const timer = setInterval(() => autosaveRef.current(), AUTOSAVE_MS)
+    return () => clearInterval(timer)
+  }, [])
 
   // Warn before window close when there are unsaved changes
   useEffect(() => {

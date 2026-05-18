@@ -18,22 +18,51 @@ interface EditorProps {
   onEditorReady?: (editor: Editor) => void
 }
 
-async function uploadFileToAzure(file: File): Promise<string | null> {
-  const arrayBuf = await file.arrayBuffer()
+async function uploadBufferToAzure(
+  arrayBuf: ArrayBuffer,
+  filename: string,
+  mimeType: string
+): Promise<string | null> {
   const buffer = Array.from(new Uint8Array(arrayBuf))
-  const result = await window.api.azure.uploadImage(
-    buffer,
-    file.name || 'image.png',
-    file.type || 'image/png'
-  )
+  const result = await window.api.azure.uploadImage(buffer, filename, mimeType)
   if (result.ok) return result.data
   console.error('Image upload failed:', result.error)
   return null
 }
 
+async function uploadFileToAzure(file: File): Promise<string | null> {
+  const arrayBuf = await file.arrayBuffer()
+  return uploadBufferToAzure(arrayBuf, file.name || 'image.png', file.type || 'image/png')
+}
+
+async function fetchAndUploadToAzure(src: string): Promise<string | null> {
+  const resp = await fetch(src)
+  if (!resp.ok) return null
+  const arrayBuf = await resp.arrayBuffer()
+  const contentType = resp.headers.get('content-type') || 'image/jpeg'
+  const mimeType = contentType.split(';')[0]
+  const ext = mimeType.split('/')[1]?.replace('jpeg', 'jpg') ?? 'jpg'
+  return uploadBufferToAzure(arrayBuf, `paste.${ext}`, mimeType)
+}
+
+function insertImageWithParagraph(editor: Editor | null, url: string, atPos?: number): void {
+  if (!editor) return
+  const chain = atPos !== undefined
+    ? editor.chain().focus().insertContentAt(atPos, [
+        { type: 'image', attrs: { src: url } },
+        { type: 'paragraph' }
+      ])
+    : editor.chain().focus().insertContent([
+        { type: 'image', attrs: { src: url } },
+        { type: 'paragraph' }
+      ])
+  chain.run()
+}
+
 export default function EditorComponent({ content, onChange, onEditorReady }: EditorProps): React.ReactElement {
   const imageInputRef = useRef<HTMLInputElement>(null)
   const initialised = useRef(false)
+  const editorRef = useRef<Editor | null>(null)
 
   const editor = useEditor({
     extensions: [
@@ -60,22 +89,37 @@ export default function EditorComponent({ content, onChange, onEditorReady }: Ed
     editorProps: {
       handlePaste(view, event) {
         const items = Array.from(event.clipboardData?.items ?? [])
+
+        // Case 1: binary image blob in clipboard (screenshot, "Copy image" context menu)
         const imageItem = items.find((item) => item.type.startsWith('image/'))
         if (imageItem) {
           event.preventDefault()
           const file = imageItem.getAsFile()
-          if (!file) return false
+          if (!file) return true // preventDefault already called – suppress default
           void uploadFileToAzure(file).then((url) => {
-            if (url) {
-              view.dispatch(
-                view.state.tr.replaceSelectionWith(
-                  view.state.schema.nodes.image.create({ src: url })
-                )
-              )
-            }
+            if (url) insertImageWithParagraph(editorRef.current, url)
           })
           return true
         }
+
+        // Case 2: HTML clipboard with an external image URL and no significant text
+        // (e.g. copying an image from a browser page like GitHub)
+        const html = event.clipboardData?.getData('text/html') ?? ''
+        if (html) {
+          const match = html.match(/<img[^>]+src=["']([^"']+)["']/)
+          const src = match?.[1]
+          if (src?.startsWith('http')) {
+            const textContent = html.replace(/<[^>]+>/g, '').trim()
+            if (textContent.length < 10) {
+              event.preventDefault()
+              void fetchAndUploadToAzure(src)
+                .then((url) => { if (url) insertImageWithParagraph(editorRef.current, url) })
+                .catch((e) => console.error('[Editor] HTML image re-upload failed:', e))
+              return true
+            }
+          }
+        }
+
         return false
       },
       handleDrop(view, event, _slice, moved) {
@@ -85,15 +129,10 @@ export default function EditorComponent({ content, onChange, onEditorReady }: Ed
           if (imageItem) {
             event.preventDefault()
             const file = imageItem.getAsFile()
-            if (!file) return false
+            if (!file) return true // preventDefault already called
             const coords = view.posAtCoords({ left: event.clientX, top: event.clientY })
             void uploadFileToAzure(file).then((url) => {
-              if (url) {
-                const pos = coords?.pos ?? view.state.doc.content.size
-                view.dispatch(
-                  view.state.tr.insert(pos, view.state.schema.nodes.image.create({ src: url }))
-                )
-              }
+              if (url) insertImageWithParagraph(editorRef.current, url, coords?.pos)
             })
             return true
           }
@@ -117,6 +156,9 @@ export default function EditorComponent({ content, onChange, onEditorReady }: Ed
     }
   }, [editor])
 
+  // Keep editorRef current so paste/drop handlers always have the latest editor instance
+  useEffect(() => { editorRef.current = editor }, [editor])
+
   // Re-load when content prop changes from outside (opening a different post)
   const prevContentRef = useRef(content)
   useEffect(() => {
@@ -134,7 +176,7 @@ export default function EditorComponent({ content, onChange, onEditorReady }: Ed
     const file = e.target.files?.[0]
     if (!file || !editor) return
     const url = await uploadFileToAzure(file)
-    if (url) editor.chain().focus().setImage({ src: url }).run()
+    if (url) insertImageWithParagraph(editor, url)
     e.target.value = '' // reset so same file can be selected again
   }
 

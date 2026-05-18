@@ -2,7 +2,7 @@
  * Calculates estimated read time in minutes.
  * Strips markdown syntax before counting words.
  */
-export function calculateReadTime(markdownContent: string): number {
+export function calculateReadTime(markdownContent: string): string {
   const text = markdownContent
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`]*`/g, '')
@@ -18,7 +18,7 @@ export function calculateReadTime(markdownContent: string): number {
     .trim()
 
   const wordCount = text.split(' ').filter(Boolean).length
-  return Math.max(1, Math.ceil(wordCount / 200))
+  return `${Math.max(1, Math.ceil(wordCount / 200))} min read`
 }
 
 /**

@@ -1,12 +1,20 @@
+export interface Author {
+  name: string
+  role: string
+  bio: string
+  image: string
+  alt: string
+}
+
 export interface FrontMatter {
   title: string
   date: string // ISO date string e.g. "2026-05-17"
   description: string
   image: string // Azure Blob URL for hero image
   alt: string // hero image alt text
-  author: string
+  author: Author
   category: string
-  readTime: number // minutes, auto-calculated
+  readTime: string // e.g. "6 min read"
   tags: string[]
   slug: string
   status: 'published' | 'draft'
