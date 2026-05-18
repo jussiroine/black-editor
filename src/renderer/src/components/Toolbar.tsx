@@ -1,5 +1,5 @@
 import { type Editor } from '@tiptap/react'
-import React from 'react'
+import React, { useRef, useState } from 'react'
 
 interface ToolbarProps {
   editor: Editor | null
@@ -7,10 +7,13 @@ interface ToolbarProps {
 }
 
 export default function Toolbar({ editor, onInsertImage }: ToolbarProps): React.ReactElement {
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const linkInputRef = useRef<HTMLInputElement>(null)
+
   if (!editor) return <div className="toolbar" />
 
-  const btn = (
-    label: string,
+  const btn = (    label: string,
     title: string,
     active: boolean,
     action: () => void,
@@ -27,6 +30,29 @@ export default function Toolbar({ editor, onInsertImage }: ToolbarProps): React.
       {label}
     </button>
   )
+
+  function openLinkPopover(): void {
+    const existing = editor.getAttributes('link').href as string | undefined
+    setLinkUrl(existing ?? '')
+    setLinkOpen(true)
+    setTimeout(() => linkInputRef.current?.focus(), 0)
+  }
+
+  function applyLink(): void {
+    const href = linkUrl.trim()
+    if (href) {
+      editor.chain().focus().extendMarkRange('link').setLink({ href }).run()
+    } else {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    }
+    setLinkOpen(false)
+    setLinkUrl('')
+  }
+
+  function cancelLink(): void {
+    setLinkOpen(false)
+    setLinkUrl('')
+  }
 
   return (
     <div className="toolbar">
@@ -90,17 +116,43 @@ export default function Toolbar({ editor, onInsertImage }: ToolbarProps): React.
         >
           🖼
         </button>
-        <button
-          className="toolbar-btn"
-          title="Insert link"
-          onClick={() => {
-            const url = window.prompt('URL')
-            if (url) editor.chain().focus().setLink({ href: url }).run()
-          }}
-          type="button"
-        >
-          🔗
-        </button>
+        <div className="toolbar-link-wrap">
+          <button
+            className={`toolbar-btn${editor.isActive('link') ? ' is-active' : ''}`}
+            title="Insert / edit link"
+            onClick={openLinkPopover}
+            type="button"
+          >
+            🔗
+          </button>
+          {linkOpen && (
+            <div className="toolbar-link-popover">
+              <input
+                ref={linkInputRef}
+                type="url"
+                className="toolbar-link-input"
+                placeholder="https://"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); applyLink() }
+                  if (e.key === 'Escape') cancelLink()
+                }}
+              />
+              <button type="button" className="toolbar-btn" onClick={applyLink} title="Apply">✓</button>
+              {editor.isActive('link') && (
+                <button
+                  type="button"
+                  className="toolbar-btn"
+                  title="Remove link"
+                  onClick={() => { editor.chain().focus().extendMarkRange('link').unsetLink().run(); cancelLink() }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="toolbar-sep" />

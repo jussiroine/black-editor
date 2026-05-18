@@ -4,6 +4,70 @@ import EditorComponent from '../components/Editor'
 import type { AppConfig, FrontMatter, LoadedPost } from '../../../shared/types'
 import { calculateReadTime, generateSlug, todayIso } from '../utils/calculations'
 
+function extractImageUrls(markdown: string): string[] {
+  const mdImages = [...markdown.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)].map((m) => m[1])
+  const htmlImages = [...markdown.matchAll(/<img[^>]+src=["']([^"']+)["']/g)].map((m) => m[1])
+  return Array.from(new Set([...mdImages, ...htmlImages]))
+}
+
+interface AssetPanelProps {
+  filePath: string
+  heroImage: string
+  content: string
+  onClose: () => void
+}
+
+function AssetPanel({ filePath, heroImage, content, onClose }: AssetPanelProps): React.ReactElement {
+  const embeddedImages = extractImageUrls(content)
+  const allImages = Array.from(new Set([heroImage, ...embeddedImages].filter(Boolean)))
+
+  return (
+    <div className="asset-panel">
+      <div className="asset-panel-header">
+        <span className="asset-panel-title">Post Assets</span>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>×</button>
+      </div>
+      <div className="asset-panel-body">
+        <div className="asset-section">
+          <div className="asset-label">MDX file</div>
+          <div className="asset-value asset-mono">{filePath || <em>not yet saved</em>}</div>
+        </div>
+        <div className="asset-section">
+          <div className="asset-label">Images ({allImages.length})</div>
+          {allImages.length === 0 ? (
+            <div className="asset-empty">No images found</div>
+          ) : (
+            <ul className="asset-image-list">
+              {allImages.map((url) => (
+                <li key={url} className="asset-image-item">
+                  {heroImage === url && <span className="asset-badge">hero</span>}
+                  <a
+                    href={url}
+                    title={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="asset-url"
+                  >
+                    {url}
+                  </a>
+                  <button
+                    type="button"
+                    className="asset-copy-btn"
+                    title="Copy URL"
+                    onClick={() => navigator.clipboard.writeText(url)}
+                  >
+                    ⎘
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface EditorScreenProps {
   post: LoadedPost | null // null = new post
   config: AppConfig
@@ -48,6 +112,7 @@ export default function EditorScreen({
   const [isSuggestingTags, setIsSuggestingTags] = useState(false)
   const [error, setError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [showInfo, setShowInfo] = useState(false)
 
   const contentRef = useRef(content)
 
@@ -192,6 +257,14 @@ export default function EditorScreen({
           )}
           <button
             type="button"
+            className={`btn btn-ghost btn-sm${showInfo ? ' btn-active' : ''}`}
+            onClick={() => setShowInfo((v) => !v)}
+            title="Post assets"
+          >
+            ℹ
+          </button>
+          <button
+            type="button"
             className="btn btn-ghost btn-sm"
             onClick={onSettings}
             title="Settings"
@@ -215,6 +288,16 @@ export default function EditorScreen({
           {error}
           <button type="button" onClick={() => setError('')} style={{ float: 'right', background: 'none', color: 'inherit' }}>×</button>
         </div>
+      )}
+
+      {/* Assets info panel */}
+      {showInfo && (
+        <AssetPanel
+          filePath={filePath}
+          heroImage={frontMatter.image}
+          content={content}
+          onClose={() => setShowInfo(false)}
+        />
       )}
 
       {/* Scrollable body */}

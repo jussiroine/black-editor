@@ -111,8 +111,7 @@ export default function EditorComponent({ content, onChange, onEditorReady }: Ed
     if (editor && !initialised.current) {
       initialised.current = true
       if (content) {
-        // tiptap-markdown adds setMarkdownContent but types may lag
-        ;(editor.commands as unknown as { setMarkdownContent(c: string): void }).setMarkdownContent(content)
+        editor.commands.setContent(content)
       }
       onEditorReady?.(editor)
     }
@@ -123,7 +122,7 @@ export default function EditorComponent({ content, onChange, onEditorReady }: Ed
   useEffect(() => {
     if (editor && prevContentRef.current !== content) {
       prevContentRef.current = content
-      ;(editor.commands as unknown as { setMarkdownContent(c: string): void }).setMarkdownContent(content)
+      editor.commands.setContent(content)
     }
   }, [content, editor])
 

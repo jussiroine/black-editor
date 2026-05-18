@@ -1,5 +1,23 @@
-import React from 'react'
+import React, { useState } from 'react'
 import type { PostMeta } from '../../../shared/types'
+
+type SortKey = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc'
+
+function extractDate(name: string): string {
+  // Matches filenames starting with YYYY-MM-DD
+  return name.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? ''
+}
+
+function sortPosts(posts: PostMeta[], sort: SortKey): PostMeta[] {
+  return [...posts].sort((a, b) => {
+    if (sort === 'name-asc') return a.name.localeCompare(b.name)
+    if (sort === 'name-desc') return b.name.localeCompare(a.name)
+    const da = extractDate(a.name) || a.name
+    const db = extractDate(b.name) || b.name
+    if (sort === 'date-asc') return da.localeCompare(db)
+    return db.localeCompare(da) // date-desc
+  })
+}
 
 interface PostBrowserProps {
   posts: PostMeta[]
@@ -20,6 +38,19 @@ export default function PostBrowser({
   onRefresh,
   onSettings
 }: PostBrowserProps): React.ReactElement {
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<SortKey>('date-desc')
+
+  const filtered = sortPosts(
+    query.trim()
+      ? posts.filter((p) =>
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.path.toLowerCase().includes(query.toLowerCase())
+        )
+      : posts,
+    sort
+  )
+
   return (
     <div className="browser-screen">
       <div className="browser-header">
@@ -44,6 +75,24 @@ export default function PostBrowser({
         >
           {isLoading ? <span className="spinner" /> : '↻ Refresh'}
         </button>
+        <input
+          type="search"
+          className="browser-search"
+          placeholder="Search posts…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <select
+          className="browser-sort"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortKey)}
+          title="Sort order"
+        >
+          <option value="date-desc">Newest first</option>
+          <option value="date-asc">Oldest first</option>
+          <option value="name-asc">A → Z</option>
+          <option value="name-desc">Z → A</option>
+        </select>
       </div>
 
       {error && (
@@ -67,7 +116,13 @@ export default function PostBrowser({
           </div>
         )}
 
-        {posts.map((post) => (
+        {!isLoading && posts.length > 0 && filtered.length === 0 && (
+          <div className="browser-empty">
+            <p>No posts match <strong>{query}</strong>.</p>
+          </div>
+        )}
+
+        {filtered.map((post) => (
           <button
             key={post.path}
             type="button"

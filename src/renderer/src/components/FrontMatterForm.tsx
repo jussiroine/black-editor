@@ -83,8 +83,11 @@ export default function FrontMatterForm({
       const buffer = Array.from(new Uint8Array(arrayBuf))
       const result = await window.api.azure.uploadImage(buffer, file.name, file.type)
       if (result.ok) {
-        set('image', result.data)
-        set('alt', file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' '))
+        onChange({
+          ...frontMatter,
+          image: result.data,
+          alt: file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+        })
       } else {
         setHeroError(result.error)
       }

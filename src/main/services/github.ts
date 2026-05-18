@@ -90,11 +90,15 @@ export async function getPost(filePath: string): Promise<LoadedPost> {
     content: parsed.content.trim(),
     frontMatter: {
       title: fm.title ?? '',
-      date: fm.date ? String(fm.date) : new Date().toISOString().slice(0, 10),
+      date: fm.date instanceof Date
+        ? fm.date.toISOString().slice(0, 10)
+        : (fm.date ? String(fm.date).slice(0, 10) : new Date().toISOString().slice(0, 10)),
       description: fm.description ?? '',
       image: fm.image ?? '',
       alt: fm.alt ?? '',
-      author: fm.author ?? '',
+      author: typeof fm.author === 'object' && fm.author !== null
+        ? ((fm.author as Record<string, unknown>).name as string ?? '')
+        : (fm.author ?? ''),
       category: fm.category ?? '',
       readTime: typeof fm.readTime === 'number' ? fm.readTime : 1,
       tags: Array.isArray(fm.tags) ? fm.tags : [],
