@@ -33,6 +33,9 @@ export default function SettingsScreen({ config, onSaved, onBack }: SettingsScre
   function setAzure<K extends keyof AppConfig['azure']>(key: K, value: AppConfig['azure'][K]): void {
     setForm((prev) => ({ ...prev, azure: { ...prev.azure, [key]: value } }))
   }
+  function setOllama<K extends keyof AppConfig['ollama']>(key: K, value: AppConfig['ollama'][K]): void {
+    setForm((prev) => ({ ...prev, ollama: { ...prev.ollama, [key]: value } }))
+  }
 
   async function startDeviceFlow(): Promise<void> {
     const clientId = form.github.clientId.trim()
@@ -256,20 +259,32 @@ export default function SettingsScreen({ config, onSaved, onBack }: SettingsScre
 
         <hr />
 
-        {/* ── OpenAI ────────────────────────────────── */}
+        {/* ── Ollama ────────────────────────────────── */}
         <section className="settings-section">
-          <h2>OpenAI (tag suggestions)</h2>
-          <div className="field">
-            <label>API key</label>
-            <input
-              type="password"
-              value={secrets.openaiApiKey ?? ''}
-              onChange={(e) => setSecrets((p) => ({ ...p, openaiApiKey: e.target.value }))}
-              placeholder="sk-…"
-              autoComplete="off"
-            />
-            <span className="field-hint">Stored encrypted on disk. Leave blank to keep existing value.</span>
+          <h2>Ollama (AI features)</h2>
+          <div className="settings-grid-2">
+            <div className="field">
+              <label>API URL</label>
+              <input
+                type="text"
+                value={form.ollama.url}
+                onChange={(e) => setOllama('url', e.target.value)}
+                placeholder="http://localhost:11434"
+              />
+            </div>
+            <div className="field">
+              <label>Model</label>
+              <input
+                type="text"
+                value={form.ollama.model}
+                onChange={(e) => setOllama('model', e.target.value)}
+                placeholder="gemma4:e4b"
+              />
+            </div>
           </div>
+          <span className="field-hint" style={{ marginTop: 8, display: 'block' }}>
+            Used for tag suggestions and description generation. Requires a running Ollama instance.
+          </span>
         </section>
 
         <hr />

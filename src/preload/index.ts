@@ -56,9 +56,11 @@ const api = {
       ipcRenderer.invoke('azure:uploadImage', buffer, filename, mimeType)
   },
 
-  openai: {
+  ollama: {
     suggestTags: (content: string): Promise<IpcResult<string[]>> =>
-      ipcRenderer.invoke('openai:suggestTags', content)
+      ipcRenderer.invoke('ollama:suggestTags', content),
+    generateDescription: (content: string): Promise<IpcResult<string>> =>
+      ipcRenderer.invoke('ollama:generateDescription', content)
   }
 }
 

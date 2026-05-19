@@ -28,13 +28,17 @@ interface FrontMatterFormProps {
   onChange: (fm: FrontMatter) => void
   onSuggestTags: () => Promise<void>
   isSuggestingTags: boolean
+  onGenerateDescription: () => Promise<void>
+  isGeneratingDescription: boolean
 }
 
 export default function FrontMatterForm({
   frontMatter,
   onChange,
   onSuggestTags,
-  isSuggestingTags
+  isSuggestingTags,
+  onGenerateDescription,
+  isGeneratingDescription
 }: FrontMatterFormProps): React.ReactElement {
   const heroInputRef = useRef<HTMLInputElement>(null)
   const [tagInput, setTagInput] = useState('')
@@ -124,7 +128,18 @@ export default function FrontMatterForm({
 
       {/* Row 2: description */}
       <div className="field">
-        <label>Description</label>
+        <div className="field-label-row">
+          <label>Description</label>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={onGenerateDescription}
+            disabled={isGeneratingDescription}
+            title="Generate description using Ollama"
+          >
+            {isGeneratingDescription ? <span className="spinner" /> : '✦ Generate'}
+          </button>
+        </div>
         <textarea
           value={frontMatter.description}
           onChange={(e) => set('description', e.target.value)}

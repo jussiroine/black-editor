@@ -38,7 +38,8 @@ export interface ElectronAPI {
       mimeType: string
     ): Promise<IpcResult<string>>
   }
-  openai: {
+  ollama: {
     suggestTags(content: string): Promise<IpcResult<string[]>>
+    generateDescription(content: string): Promise<IpcResult<string>>
   }
 }

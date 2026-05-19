@@ -9,6 +9,7 @@ const SECRETS_FILE = path.join(app.getPath('userData'), 'secrets.json')
 const defaultConfig: AppConfig = {
   github: { repo: '', branch: 'master', clientId: '' },
   azure: { container: 'img' },
+  ollama: { url: 'http://localhost:11434', model: 'gemma4:e4b' },
   author: ''
 }
 
@@ -20,6 +21,7 @@ export function readConfig(): AppConfig {
     return {
       github: { ...defaultConfig.github, ...(saved.github ?? {}) },
       azure: { ...defaultConfig.azure, ...(saved.azure ?? {}) },
+      ollama: { ...defaultConfig.ollama, ...(saved.ollama ?? {}) },
       author: saved.author ?? defaultConfig.author
     }
   } catch {

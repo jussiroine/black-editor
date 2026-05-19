@@ -110,6 +110,7 @@ export default function EditorScreen({
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isSuggestingTags, setIsSuggestingTags] = useState(false)
+  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false)
   const [error, setError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
@@ -184,7 +185,7 @@ export default function EditorScreen({
     setIsSuggestingTags(true)
     setError('')
     try {
-      const result = await window.api.openai.suggestTags(contentRef.current)
+      const result = await window.api.ollama.suggestTags(contentRef.current)
       if (result.ok) {
         const merged = Array.from(new Set([...frontMatter.tags, ...result.data]))
         setFrontMatter((prev) => ({ ...prev, tags: merged }))
@@ -194,6 +195,22 @@ export default function EditorScreen({
       }
     } finally {
       setIsSuggestingTags(false)
+    }
+  }
+
+  async function handleGenerateDescription(): Promise<void> {
+    setIsGeneratingDescription(true)
+    setError('')
+    try {
+      const result = await window.api.ollama.generateDescription(contentRef.current)
+      if (result.ok) {
+        setFrontMatter((prev) => ({ ...prev, description: result.data }))
+        setIsDirty(true)
+      } else {
+        setError(result.error)
+      }
+    } finally {
+      setIsGeneratingDescription(false)
     }
   }
 
@@ -326,6 +343,8 @@ export default function EditorScreen({
             onChange={handleFrontMatterChange}
             onSuggestTags={handleSuggestTags}
             isSuggestingTags={isSuggestingTags}
+            onGenerateDescription={handleGenerateDescription}
+            isGeneratingDescription={isGeneratingDescription}
           />
         </div>
 

@@ -42,6 +42,10 @@ export interface AppConfig {
   azure: {
     container: string
   }
+  ollama: {
+    url: string   // default: "http://localhost:11434"
+    model: string // e.g. "gemma4:e4b"
+  }
   author: string
 }
 
@@ -49,7 +53,6 @@ export interface AppConfig {
 export interface SensitiveConfig {
   githubToken?: string
   azureConnectionString?: string
-  openaiApiKey?: string
 }
 
 export type Screen = 'browser' | 'editor' | 'settings'

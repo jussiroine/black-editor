@@ -9,7 +9,7 @@ import {
   pollDeviceToken
 } from './services/github'
 import { initAzure, uploadImage } from './services/azure'
-import { initOpenAI, suggestTags } from './services/openai'
+import { initOllama, generateDescription, suggestTags } from './services/ollama'
 import type { AppConfig, FrontMatter, SensitiveConfig } from '../shared/types'
 
 function ok<T>(data: T) {
@@ -28,9 +28,7 @@ function bootServices(): void {
   if (secrets.azureConnectionString) {
     initAzure(secrets.azureConnectionString, config.azure.container || 'blog-images')
   }
-  if (secrets.openaiApiKey) {
-    initOpenAI(secrets.openaiApiKey)
-  }
+  initOllama(config.ollama?.url ?? 'http://localhost:11434', config.ollama?.model ?? 'gemma4:e4b')
 }
 
 export function registerIpcHandlers(): void {
@@ -144,10 +142,18 @@ export function registerIpcHandlers(): void {
     }
   )
 
-  // ---- OpenAI ----------------------------------------------------------------
-  ipcMain.handle('openai:suggestTags', async (_e, content: string) => {
+  // ---- Ollama ----------------------------------------------------------------
+  ipcMain.handle('ollama:suggestTags', async (_e, content: string) => {
     try {
       return ok(await suggestTags(content))
+    } catch (e) {
+      return err(e)
+    }
+  })
+
+  ipcMain.handle('ollama:generateDescription', async (_e, content: string) => {
+    try {
+      return ok(await generateDescription(content))
     } catch (e) {
       return err(e)
     }
