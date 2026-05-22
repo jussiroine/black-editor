@@ -73,14 +73,17 @@ export default function App(): React.ReactElement {
     setCurrentPost(saved)
     // Update post list: add or replace
     setPosts((prev) => {
-      const idx = prev.findIndex((p) => p.path === saved.path)
-      const meta: PostMeta = { path: saved.path, name: saved.path.split('/').pop()!, sha: saved.sha }
-      if (idx >= 0) {
-        const next = [...prev]
-        next[idx] = meta
-        return next
+      const meta: PostMeta = {
+        path: saved.path,
+        name: saved.path.split('/').pop()!,
+        sha: saved.sha,
+        status: saved.frontMatter.status,
+        date: saved.frontMatter.date,
+        title: saved.frontMatter.title
       }
-      return [meta, ...prev]
+      // Remove any existing entry for the old or new path
+      const filtered = prev.filter((p) => p.path !== saved.path && p.sha !== saved.sha)
+      return [meta, ...filtered]
     })
   }
 

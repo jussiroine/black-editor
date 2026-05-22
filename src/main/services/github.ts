@@ -10,6 +10,7 @@ import type {
 
 const GITHUB_API = 'https://api.github.com'
 const POSTS_PATH = 'src/content/blog'
+const DRAFTS_PATH = 'src/content/drafts'
 
 let _token: string | undefined
 let _repo: string | undefined // "owner/repo"
@@ -47,10 +48,14 @@ async function ghFetch(path: string, options: RequestInit = {}): Promise<Respons
   return resp
 }
 
-export async function listPosts(): Promise<PostMeta[]> {
-  const { owner, repo } = parseRepo(_repo!)
+async function listFolder(
+  owner: string,
+  repo: string,
+  folderPath: string,
+  status: 'published' | 'draft'
+): Promise<PostMeta[]> {
   const resp = await ghFetch(
-    `/repos/${owner}/${repo}/contents/${POSTS_PATH}?ref=${encodeURIComponent(_branch!)}`
+    `/repos/${owner}/${repo}/contents/${folderPath}?ref=${encodeURIComponent(_branch!)}`
   )
   if (resp.status === 404) return [] // directory doesn't exist yet
   if (!resp.ok) {
@@ -66,7 +71,53 @@ export async function listPosts(): Promise<PostMeta[]> {
   if (!Array.isArray(data)) throw new Error('Expected directory listing from GitHub')
   return data
     .filter((f) => f.type === 'file' && f.name.endsWith('.mdx'))
-    .map((f) => ({ path: f.path, name: f.name, sha: f.sha }))
+    .map((f) => ({ path: f.path, name: f.name, sha: f.sha, status, date: '', title: '' }))
+}
+
+async function fetchFrontMatterFields(
+  owner: string,
+  repo: string,
+  filePath: string
+): Promise<{ date: string; title: string }> {
+  try {
+    const resp = await ghFetch(
+      `/repos/${owner}/${repo}/contents/${filePath}?ref=${encodeURIComponent(_branch!)}`
+    )
+    if (!resp.ok) return { date: '', title: '' }
+    const data = (await resp.json()) as { content: string }
+    const raw = Buffer.from(data.content.replace(/\n/g, ''), 'base64').toString('utf-8')
+    const parsed = matter(raw)
+    const fm = parsed.data as Partial<FrontMatter>
+    const date =
+      fm.date instanceof Date
+        ? fm.date.toISOString().slice(0, 10)
+        : fm.date
+          ? String(fm.date).slice(0, 10)
+          : ''
+    const title = typeof fm.title === 'string' ? fm.title : ''
+    return { date, title }
+  } catch {
+    return { date: '', title: '' }
+  }
+}
+
+export async function listPosts(): Promise<PostMeta[]> {
+  const { owner, repo } = parseRepo(_repo!)
+  const [published, drafts] = await Promise.all([
+    listFolder(owner, repo, POSTS_PATH, 'published'),
+    listFolder(owner, repo, DRAFTS_PATH, 'draft')
+  ])
+  const all = [...published, ...drafts]
+  const metaResults = await Promise.allSettled(
+    all.map((meta) => fetchFrontMatterFields(owner, repo, meta.path))
+  )
+  return all.map((meta, i) => {
+    const fm =
+      metaResults[i].status === 'fulfilled'
+        ? metaResults[i].value
+        : { date: '', title: '' }
+    return { ...meta, date: fm.date, title: fm.title }
+  })
 }
 
 export async function getPost(filePath: string): Promise<LoadedPost> {
@@ -112,7 +163,6 @@ export async function getPost(filePath: string): Promise<LoadedPost> {
         const name = typeof a === 'string' ? a : ''
         return { name, role: '', bio: '', image: '', alt: name } satisfies Author
       })(),
-      category: fm.category ?? '',
       readTime: typeof fm.readTime === 'number'
         ? `${fm.readTime} min read`
         : (typeof fm.readTime === 'string' ? fm.readTime : '1 min read'),
@@ -151,6 +201,23 @@ export async function savePost(
   }
   const data = (await resp.json()) as { content: { sha: string } }
   return data.content?.sha ?? ''
+}
+
+export async function deletePost(
+  filePath: string,
+  sha: string,
+  message: string
+): Promise<void> {
+  const { owner, repo } = parseRepo(_repo!)
+  const body: Record<string, unknown> = { message, sha, branch: _branch }
+  const resp = await ghFetch(`/repos/${owner}/${repo}/contents/${filePath}`, {
+    method: 'DELETE',
+    body: JSON.stringify(body)
+  })
+  if (!resp.ok) {
+    const errBody = await resp.text()
+    throw new Error(`GitHub delete error ${resp.status}: ${errBody}`)
+  }
 }
 
 // GitHub Device Flow -------------------------------------------------------

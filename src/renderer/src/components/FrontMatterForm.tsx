@@ -1,49 +1,34 @@
 import React, { useRef, useState } from 'react'
 import type { FrontMatter } from '../../../shared/types'
 import { generateSlug, todayIso } from '../utils/calculations'
-
-// TODO: add 8 more categories to reach 25
-const CATEGORIES = [
-  'AI',
-  'Architecture',
-  'Automation',
-  'Azure',
-  'Career',
-  'Cloud',
-  'Data',
-  'Development',
-  'General',
-  'Identity',
-  'Integration',
-  'Leadership',
-  'Networking',
-  'Productivity',
-  'Security',
-  'Strategy',
-  'Wellness'
-].sort()
+import PREDEFINED_TAGS from '../../../../tags.json'
 
 interface FrontMatterFormProps {
   frontMatter: FrontMatter
   onChange: (fm: FrontMatter) => void
-  onSuggestTags: () => Promise<void>
-  isSuggestingTags: boolean
-  onGenerateDescription: () => Promise<void>
-  isGeneratingDescription: boolean
 }
 
 export default function FrontMatterForm({
   frontMatter,
-  onChange,
-  onSuggestTags,
-  isSuggestingTags,
-  onGenerateDescription,
-  isGeneratingDescription
+  onChange
 }: FrontMatterFormProps): React.ReactElement {
   const heroInputRef = useRef<HTMLInputElement>(null)
   const [tagInput, setTagInput] = useState('')
+  const [activeIndex, setActiveIndex] = useState(-1)
   const [heroUploading, setHeroUploading] = useState(false)
   const [heroError, setHeroError] = useState('')
+
+  const suggestions = tagInput.trim()
+    ? PREDEFINED_TAGS.filter(
+        (t) => t.includes(tagInput.toLowerCase()) && !frontMatter.tags.includes(t)
+      )
+    : []
+
+  const inlineCompletion = tagInput.trim()
+    ? PREDEFINED_TAGS.find(
+        (t) => t.startsWith(tagInput.toLowerCase()) && !frontMatter.tags.includes(t)
+      ) ?? null
+    : null
 
   function set<K extends keyof FrontMatter>(key: K, value: FrontMatter[K]): void {
     onChange({ ...frontMatter, [key]: value })
@@ -62,6 +47,7 @@ export default function FrontMatterForm({
       set('tags', [...frontMatter.tags, tag])
     }
     setTagInput('')
+    setActiveIndex(-1)
   }
 
   function removeTag(tag: string): void {
@@ -69,9 +55,26 @@ export default function FrontMatterForm({
   }
 
   function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
-    if (e.key === 'Enter' || e.key === ',') {
+    if (e.key === 'Tab' && inlineCompletion) {
       e.preventDefault()
-      addTag(tagInput)
+      setTagInput(inlineCompletion)
+      setActiveIndex(-1)
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIndex((i) => Math.max(i - 1, -1))
+    } else if (e.key === 'Escape') {
+      setTagInput('')
+      setActiveIndex(-1)
+    } else if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      if (activeIndex >= 0 && suggestions[activeIndex]) {
+        addTag(suggestions[activeIndex])
+      } else {
+        addTag(tagInput)
+      }
     } else if (e.key === 'Backspace' && !tagInput && frontMatter.tags.length > 0) {
       removeTag(frontMatter.tags[frontMatter.tags.length - 1])
     }
@@ -128,18 +131,7 @@ export default function FrontMatterForm({
 
       {/* Row 2: description */}
       <div className="field">
-        <div className="field-label-row">
-          <label>Description</label>
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost"
-            onClick={onGenerateDescription}
-            disabled={isGeneratingDescription}
-            title="Generate description using Ollama"
-          >
-            {isGeneratingDescription ? <span className="spinner" /> : '✦ Generate'}
-          </button>
-        </div>
+        <label>Description</label>
         <textarea
           value={frontMatter.description}
           onChange={(e) => set('description', e.target.value)}
@@ -178,20 +170,8 @@ export default function FrontMatterForm({
         </div>
       </div>
 
-      {/* Row 4: category + read time */}
+      {/* Row 4: read time */}
       <div className="fm-row fm-row-2">
-        <div className="field">
-          <label>Category</label>
-          <select
-            value={frontMatter.category}
-            onChange={(e) => set('category', e.target.value)}
-          >
-            <option value="">— Select —</option>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
         <div className="field">
           <label>Read time (auto)</label>
           <input
@@ -213,24 +193,39 @@ export default function FrontMatterForm({
               <button type="button" onClick={() => removeTag(tag)} title="Remove tag">×</button>
             </span>
           ))}
-          <input
-            type="text"
-            className="tags-inline-input"
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={handleTagKeyDown}
-            onBlur={() => addTag(tagInput)}
-            placeholder={frontMatter.tags.length === 0 ? 'Add tags…' : ''}
-          />
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost"
-            onClick={onSuggestTags}
-            disabled={isSuggestingTags}
-            title="Suggest tags using AI"
-          >
-            {isSuggestingTags ? <span className="spinner" /> : '✦ Suggest'}
-          </button>
+          <div className="tags-input-container">
+            <input
+              type="text"
+              className="tags-inline-input"
+              value={tagInput}
+              onChange={(e) => { setTagInput(e.target.value); setActiveIndex(-1) }}
+              onKeyDown={handleTagKeyDown}
+              onBlur={() => addTag(tagInput)}
+              placeholder={frontMatter.tags.length === 0 ? 'Add tags…' : ''}
+              autoComplete="off"
+            />
+            {inlineCompletion && tagInput.length > 0 && (
+              <span className="tag-ghost-text" aria-hidden="true">
+                <span style={{ visibility: 'hidden' }}>{tagInput}</span>
+                {inlineCompletion.slice(tagInput.length)}
+              </span>
+            )}
+            {suggestions.length > 0 && (
+              <ul className="tags-suggestions" role="listbox">
+                {suggestions.map((s, i) => (
+                  <li
+                    key={s}
+                    role="option"
+                    aria-selected={i === activeIndex}
+                    className={`tags-suggestion-item${i === activeIndex ? ' tags-suggestion-item--active' : ''}`}
+                    onMouseDown={(e) => { e.preventDefault(); addTag(s) }}
+                  >
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
 

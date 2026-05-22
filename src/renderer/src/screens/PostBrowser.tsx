@@ -3,17 +3,15 @@ import type { PostMeta } from '../../../shared/types'
 
 type SortKey = 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc'
 
-function extractDate(name: string): string {
-  // Matches filenames starting with YYYY-MM-DD
-  return name.match(/^(\d{4}-\d{2}-\d{2})/)?.[1] ?? ''
-}
-
 function sortPosts(posts: PostMeta[], sort: SortKey): PostMeta[] {
   return [...posts].sort((a, b) => {
-    if (sort === 'name-asc') return a.name.localeCompare(b.name)
-    if (sort === 'name-desc') return b.name.localeCompare(a.name)
-    const da = extractDate(a.name) || a.name
-    const db = extractDate(b.name) || b.name
+    const ta = a.title || a.name
+    const tb = b.title || b.name
+    if (sort === 'name-asc') return ta.localeCompare(tb)
+    if (sort === 'name-desc') return tb.localeCompare(ta)
+    // ISO date strings sort correctly with localeCompare
+    const da = a.date || ''
+    const db = b.date || ''
     if (sort === 'date-asc') return da.localeCompare(db)
     return db.localeCompare(da) // date-desc
   })
@@ -45,7 +43,8 @@ export default function PostBrowser({
     query.trim()
       ? posts.filter((p) =>
           p.name.toLowerCase().includes(query.toLowerCase()) ||
-          p.path.toLowerCase().includes(query.toLowerCase())
+          p.path.toLowerCase().includes(query.toLowerCase()) ||
+          p.title.toLowerCase().includes(query.toLowerCase())
         )
       : posts,
     sort
@@ -111,7 +110,7 @@ export default function PostBrowser({
 
         {!isLoading && !error && posts.length === 0 && (
           <div className="browser-empty">
-            <p>No posts found in <code>src/content/blog/</code>.</p>
+            <p>No posts found in <code>src/content/blog/</code> or <code>src/content/drafts/</code>.</p>
             <p>Create your first post with <strong>+ New Post</strong>.</p>
           </div>
         )}
@@ -123,16 +122,32 @@ export default function PostBrowser({
         )}
 
         {filtered.map((post) => (
-          <button
+          <div
             key={post.path}
-            type="button"
             className="browser-post-item"
             onClick={() => onOpen(post)}
           >
-            <span className="browser-post-name">{post.name.replace(/\.mdx$/, '')}</span>
-            <span className="browser-post-path">{post.path}</span>
-          </button>
+            <div className="browser-post-info">
+              <span className="browser-post-name">
+                {post.title || post.name.replace(/\.mdx$/, '')}
+                {post.status === 'draft' && (
+                  <span className="draft-badge">Draft</span>
+                )}
+              </span>
+              <span className="browser-post-path">{post.path}</span>
+            </div>
+            {post.date && (
+              <span className="browser-post-date">
+                {new Date(post.date + 'T00:00:00').toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                })}
+              </span>
+            )}
+          </div>
         ))}
+
       </div>
     </div>
   )

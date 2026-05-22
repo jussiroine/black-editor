@@ -44,7 +44,14 @@ const api = {
       sha: string | undefined,
       message: string
     ): Promise<IpcResult<string>> =>
-      ipcRenderer.invoke('github:savePost', path, frontMatter, content, sha, message)
+      ipcRenderer.invoke('github:savePost', path, frontMatter, content, sha, message),
+
+    deletePost: (
+      path: string,
+      sha: string,
+      message: string
+    ): Promise<IpcResult<null>> =>
+      ipcRenderer.invoke('github:deletePost', path, sha, message)
   },
 
   azure: {
@@ -57,10 +64,8 @@ const api = {
   },
 
   ollama: {
-    suggestTags: (content: string): Promise<IpcResult<string[]>> =>
-      ipcRenderer.invoke('ollama:suggestTags', content),
-    generateDescription: (content: string): Promise<IpcResult<string>> =>
-      ipcRenderer.invoke('ollama:generateDescription', content)
+    generateAbstract: (content: string): Promise<IpcResult<string>> =>
+      ipcRenderer.invoke('ollama:generateAbstract', content)
   }
 }
 

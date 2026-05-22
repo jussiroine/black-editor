@@ -283,7 +283,7 @@ export default function SettingsScreen({ config, onSaved, onBack }: SettingsScre
             </div>
           </div>
           <span className="field-hint" style={{ marginTop: 8, display: 'block' }}>
-            Used for tag suggestions and description generation. Requires a running Ollama instance.
+            Used for abstract generation. Requires a running Ollama instance.
           </span>
         </section>
 

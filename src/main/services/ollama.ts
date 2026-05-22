@@ -1,9 +1,9 @@
 let _url = 'http://localhost:11434'
-let _model = 'gemma4:e4b'
+let _model = 'qwen3.6:27b'
 
 export function initOllama(url: string, model: string): void {
   _url = url || 'http://localhost:11434'
-  _model = model || 'gemma4:e4b'
+  _model = model || 'qwen3.6:27b'
 }
 
 function stripMarkdown(md: string): string {
@@ -34,37 +34,23 @@ async function ollamaGenerate(prompt: string): Promise<string> {
   return data.response?.trim() ?? ''
 }
 
-export async function generateDescription(content: string): Promise<string> {
+export async function generateAbstract(content: string): Promise<string> {
   const plain = stripMarkdown(content)
   const excerpt = plain.split(/\s+/).slice(0, 600).join(' ')
   const prompt =
-    'Write a 2-4 sentence summary/description for the following blog post. Use passive voice where appropriate.' +
+    'You\'re writing a short intro blurb for a blog post. Your job is to orient a reader to what the post is about so they can decide whether to read it — not' + 
+    'to summarize it. You\'ll be given the full text of the post. Write 2–4 sentences that:' +
+    '- State the topic and the central question, problem, or argument the post\n' +
+    '  engages with.\n' +
+    '- Convey why it matters or who it\'s for, when that\'s clear from the post.\n' +
+    '- Do NOT reveal the post\'s conclusions, recommendations, or final takeaways —\n' +
+    '  leave the reader a reason to read on.\n' +
+    '- Do NOT walk through the post\'s structure or enumerate what each section covers.\n' +
+    'Match the tone of the post. Write in plain, direct prose, in the third person' +
+    ' about the subject matter. Don\'t open with meta-phrases like "In this post" or ' +
+    '"This article explores" — start with the substance. Output only the intro ' +
+    'text: no heading, label, or quotation marks.' +
     'Return ONLY the summary text with no markdown formatting or additional commentary.\n\n' +
     excerpt
   return ollamaGenerate(prompt)
-}
-
-export async function suggestTags(content: string): Promise<string[]> {
-  const plain = stripMarkdown(content)
-  const excerpt = plain.split(/\s+/).slice(0, 500).join(' ')
-  const prompt =
-    'Return ONLY a JSON array of 5-7 lowercase tag strings for this blog post. ' +
-    'No explanation, no markdown — just the JSON array.\n\n' +
-    excerpt
-  const text = await ollamaGenerate(prompt)
-  try {
-    const parsed = JSON.parse(text) as unknown
-    if (Array.isArray(parsed)) return parsed.map(String)
-  } catch {
-    const match = text.match(/\[[\s\S]*?\]/)
-    if (match) {
-      try {
-        const parsed = JSON.parse(match[0]) as unknown
-        if (Array.isArray(parsed)) return parsed.map(String)
-      } catch {
-        // ignore
-      }
-    }
-  }
-  return []
 }

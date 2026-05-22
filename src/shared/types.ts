@@ -13,7 +13,6 @@ export interface FrontMatter {
   image: string // Azure Blob URL for hero image
   alt: string // hero image alt text
   author: Author
-  category: string
   readTime: string // e.g. "6 min read"
   tags: string[]
   slug: string
@@ -21,9 +20,12 @@ export interface FrontMatter {
 }
 
 export interface PostMeta {
-  path: string // e.g. "src/content/blog/my-post.mdx"
-  name: string // e.g. "my-post.mdx"
+  path: string  // e.g. "src/content/blog/my-post.mdx"
+  name: string  // e.g. "my-post.mdx"
   sha: string
+  status: 'published' | 'draft'
+  date: string  // ISO date from frontmatter e.g. "2026-05-17", or ""
+  title: string // post title from frontmatter, or ""
 }
 
 export interface LoadedPost {

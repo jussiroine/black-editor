@@ -5,11 +5,12 @@ import {
   listPosts,
   getPost,
   savePost,
+  deletePost,
   startDeviceFlow,
   pollDeviceToken
 } from './services/github'
 import { initAzure, uploadImage } from './services/azure'
-import { initOllama, generateDescription, suggestTags } from './services/ollama'
+import { initOllama, generateAbstract } from './services/ollama'
 import type { AppConfig, FrontMatter, SensitiveConfig } from '../shared/types'
 
 function ok<T>(data: T) {
@@ -128,6 +129,18 @@ export function registerIpcHandlers(): void {
     }
   )
 
+  ipcMain.handle(
+    'github:deletePost',
+    async (_e, filePath: string, sha: string, message: string) => {
+      try {
+        await deletePost(filePath, sha, message)
+        return ok(null)
+      } catch (e) {
+        return err(e)
+      }
+    }
+  )
+
   // ---- Azure -----------------------------------------------------------------
   ipcMain.handle(
     'azure:uploadImage',
@@ -143,17 +156,9 @@ export function registerIpcHandlers(): void {
   )
 
   // ---- Ollama ----------------------------------------------------------------
-  ipcMain.handle('ollama:suggestTags', async (_e, content: string) => {
+  ipcMain.handle('ollama:generateAbstract', async (_e, content: string) => {
     try {
-      return ok(await suggestTags(content))
-    } catch (e) {
-      return err(e)
-    }
-  })
-
-  ipcMain.handle('ollama:generateDescription', async (_e, content: string) => {
-    try {
-      return ok(await generateDescription(content))
+      return ok(await generateAbstract(content))
     } catch (e) {
       return err(e)
     }

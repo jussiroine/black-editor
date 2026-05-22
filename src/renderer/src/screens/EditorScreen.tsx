@@ -84,7 +84,6 @@ function defaultFrontMatter(author: string): FrontMatter {
     image: '',
     alt: '',
     author: { name: author, role: '', bio: '', image: '', alt: author },
-    category: '',
     readTime: '1 min read',
     tags: [],
     slug: '',
@@ -109,8 +108,6 @@ export default function EditorScreen({
   const [filePath, setFilePath] = useState<string>(post?.path ?? '')
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [isSuggestingTags, setIsSuggestingTags] = useState(false)
-  const [isGeneratingDescription, setIsGeneratingDescription] = useState(false)
   const [error, setError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
@@ -181,39 +178,6 @@ export default function EditorScreen({
     setIsDirty(true)
   }
 
-  async function handleSuggestTags(): Promise<void> {
-    setIsSuggestingTags(true)
-    setError('')
-    try {
-      const result = await window.api.ollama.suggestTags(contentRef.current)
-      if (result.ok) {
-        const merged = Array.from(new Set([...frontMatter.tags, ...result.data]))
-        setFrontMatter((prev) => ({ ...prev, tags: merged }))
-        setIsDirty(true)
-      } else {
-        setError(result.error)
-      }
-    } finally {
-      setIsSuggestingTags(false)
-    }
-  }
-
-  async function handleGenerateDescription(): Promise<void> {
-    setIsGeneratingDescription(true)
-    setError('')
-    try {
-      const result = await window.api.ollama.generateDescription(contentRef.current)
-      if (result.ok) {
-        setFrontMatter((prev) => ({ ...prev, description: result.data }))
-        setIsDirty(true)
-      } else {
-        setError(result.error)
-      }
-    } finally {
-      setIsGeneratingDescription(false)
-    }
-  }
-
   async function handleSave(): Promise<void> {
     if (!frontMatter.title.trim()) {
       setError('Title is required before saving.')
@@ -230,28 +194,50 @@ export default function EditorScreen({
     setError('')
 
     const slug = frontMatter.slug || generateSlug(frontMatter.title)
-    const path = filePath || `src/content/blog/${slug}.mdx`
+    const targetFolder =
+      frontMatter.status === 'draft' ? 'src/content/drafts' : 'src/content/blog'
+    const targetPath = filePath
+      ? // Remap existing path to the correct folder (handles status changes)
+        `${targetFolder}/${filePath.split('/').pop()}`
+      : `${targetFolder}/${slug}.mdx`
+
+    // Detect a status-driven folder move: file already exists and folder changed
+    const isMove =
+      !!filePath && !!sha && !filePath.startsWith(targetFolder + '/')
+
     const message = sha
       ? `update: ${frontMatter.title}`
       : `post: ${frontMatter.title}`
 
     try {
       const result = await window.api.github.savePost(
-        path,
+        targetPath,
         { ...frontMatter, slug },
         contentRef.current,
-        sha,
+        // When moving, the target file is new — no sha
+        isMove ? undefined : sha,
         message
       )
       if (result.ok) {
+        // If we moved the file, delete the old one
+        if (isMove && sha) {
+          const deleteResult = await window.api.github.deletePost(
+            filePath,
+            sha,
+            `remove draft: ${frontMatter.title}`
+          )
+          if (!deleteResult.ok) {
+            setError(`Saved to new location but could not delete old file: ${deleteResult.error}`)
+          }
+        }
         const saved: LoadedPost = {
-          path,
+          path: targetPath,
           sha: result.data,
           frontMatter: { ...frontMatter, slug },
           content: contentRef.current
         }
         setSha(result.data)
-        setFilePath(path)
+        setFilePath(targetPath)
         setIsDirty(false)
         setSaveSuccess(true)
         setTimeout(() => setSaveSuccess(false), 2500)
@@ -341,10 +327,6 @@ export default function EditorScreen({
           <FrontMatterForm
             frontMatter={frontMatter}
             onChange={handleFrontMatterChange}
-            onSuggestTags={handleSuggestTags}
-            isSuggestingTags={isSuggestingTags}
-            onGenerateDescription={handleGenerateDescription}
-            isGeneratingDescription={isGeneratingDescription}
           />
         </div>
 

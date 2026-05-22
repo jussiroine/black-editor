@@ -30,6 +30,7 @@ export interface ElectronAPI {
       sha: string | undefined,
       message: string
     ): Promise<IpcResult<string>>
+    deletePost(path: string, sha: string, message: string): Promise<IpcResult<null>>
   }
   azure: {
     uploadImage(
@@ -39,7 +40,6 @@ export interface ElectronAPI {
     ): Promise<IpcResult<string>>
   }
   ollama: {
-    suggestTags(content: string): Promise<IpcResult<string[]>>
-    generateDescription(content: string): Promise<IpcResult<string>>
+    generateAbstract(content: string): Promise<IpcResult<string>>
   }
 }
